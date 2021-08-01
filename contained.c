@@ -3,6 +3,11 @@
    https://www.gnu.org/licenses/gpl-3.0.en.html */
 /*gcc -Wall -Werror contained.c  -o contained -lseccomp -lcap*/
 
+
+/*
+ * usage:sudo ./contained -m ~/workspace/aosp/Containers/minirootfs/ -u 0 -c /bin/sh
+ * sudo ./contained -m /var/lib/lxc/ubuntu-focal/rootfs -u 0 -c /bin/sh
+ */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -90,6 +95,8 @@ int pivot_root(const char *new_root, const char *put_old)
 
 int mounts(struct child_config *config)
 {
+	char dev_node[PATH_MAX];
+	int ret;
 	fprintf(stderr, "=> remounting everything with MS_PRIVATE...");
 	if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL)) {
 		fprintf(stderr, "failed! %m\n");
@@ -124,11 +131,25 @@ int mounts(struct child_config *config)
 	}
 	fprintf(stderr, "done.\n");
 
+	mkdir("/tvr",0755);
+	ret = mknod("/tvr/mydev", S_IFREG | 0000, 0);
+        if (ret < 0 && errno != EEXIST)
+                return -1;
+
+
+
+
 	char *old_root_dir = basename(inner_mount_dir);
 	char old_root[sizeof(inner_mount_dir) + 1] = { "/" };
 	strcpy(&old_root[1], old_root_dir);
 
 	fprintf(stderr, "=> unmounting %s...", old_root);
+	snprintf(dev_node, PATH_MAX, "%s/dev/ttyS3", old_root);
+
+	if (mount(dev_node, "/tvr/mydev", NULL, MS_BIND, NULL)) {
+                fprintf(stderr, "device bind mount failed! because :%s\n",strerror(errno));
+                return -1;
+        }
 	if (chdir("/")) {
 		fprintf(stderr, "chdir failed! %m\n");
 		return -1;
@@ -504,10 +525,10 @@ finish_options:
 		fprintf(stderr, "weird release format: %s\n", host.release);
 		goto cleanup;
 	}
-	if (major != 4 || (minor != 7 && minor != 8)) {
+/*	if (major != 4 || (minor != 7 && minor != 8)) {
 		fprintf(stderr, "expected 4.7.x or 4.8.x: %s\n", host.release);
 		goto cleanup;
-	}
+	}*/
 	if (strcmp("x86_64", host.machine)) {
 		fprintf(stderr, "expected x86_64: %s\n", host.machine);
 		goto cleanup;
@@ -535,10 +556,10 @@ finish_options:
 		fprintf(stderr, "=> malloc failed, out of memory?\n");
 		goto error;
 	}
-	if (resources(&config)) {
+	/*if (resources(&config)) {
 		err = 1;
 		goto clear_resources;
-	}
+	}*/
 	int flags = CLONE_NEWNS
 		| CLONE_NEWCGROUP
 		| CLONE_NEWPID
