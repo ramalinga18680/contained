@@ -116,6 +116,26 @@ int mounts(struct child_config *config)
 		return -1;
 	}
 
+	snprintf(dev_node,PATH_MAX,"%s/proc",mount_dir);
+	mount("proc",dev_node,"proc",0,NULL);
+
+	snprintf(dev_node,PATH_MAX,"%s/dev",mount_dir);
+	if(mount("none",dev_node,"tmpfs",0,NULL)){
+		fprintf(stderr,"Failed to tmpfs on /dev\n");
+		return -1;
+	}
+        
+	snprintf(dev_node,PATH_MAX,"%s/dev/mydev",mount_dir);
+	
+	ret = mknod(dev_node, S_IFREG | 0000, 0);
+        if (ret < 0 && errno != EEXIST)
+                return -errno;
+
+	if (mount("/dev/ttyS3",dev_node,NULL, MS_BIND, NULL)) {
+                fprintf(stderr, "device bind mount failed! because :%s\n",strerror(errno));
+                return -1;
+        }
+
 	char inner_mount_dir[] = "/tmp/tmp.XXXXXX/oldroot.XXXXXX";
 	memcpy(inner_mount_dir, mount_dir, sizeof(mount_dir) - 1);
 	if (!mkdtemp(inner_mount_dir)) {
@@ -131,25 +151,13 @@ int mounts(struct child_config *config)
 	}
 	fprintf(stderr, "done.\n");
 
-	mkdir("/tvr",0755);
-	ret = mknod("/tvr/mydev", S_IFREG | 0000, 0);
-        if (ret < 0 && errno != EEXIST)
-                return -1;
-
-
-
 
 	char *old_root_dir = basename(inner_mount_dir);
 	char old_root[sizeof(inner_mount_dir) + 1] = { "/" };
 	strcpy(&old_root[1], old_root_dir);
 
 	fprintf(stderr, "=> unmounting %s...", old_root);
-	snprintf(dev_node, PATH_MAX, "%s/dev/ttyS3", old_root);
 
-	if (mount(dev_node, "/tvr/mydev", NULL, MS_BIND, NULL)) {
-                fprintf(stderr, "device bind mount failed! because :%s\n",strerror(errno));
-                return -1;
-        }
 	if (chdir("/")) {
 		fprintf(stderr, "chdir failed! %m\n");
 		return -1;
