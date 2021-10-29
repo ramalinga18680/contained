@@ -277,7 +277,7 @@ struct cgrp_control *cgrps[] = {
 			NULL
 		}
 	},
-	& (struct cgrp_control) {
+	/*& (struct cgrp_control) {
 		.control = "blkio",
 		.settings = (struct cgrp_setting *[]) {
 			& (struct cgrp_setting) {
@@ -287,7 +287,7 @@ struct cgrp_control *cgrps[] = {
 			&add_to_tasks,
 			NULL
 		}
-	},
+	},*/
 	NULL
 };
 int resources(struct child_config *config)
@@ -564,10 +564,10 @@ finish_options:
 		fprintf(stderr, "=> malloc failed, out of memory?\n");
 		goto error;
 	}
-	/*if (resources(&config)) {
+	if (resources(&config)) {
 		err = 1;
 		goto clear_resources;
-	}*/
+	}
 	int flags = CLONE_NEWNS
 		| CLONE_NEWCGROUP
 		| CLONE_NEWPID
